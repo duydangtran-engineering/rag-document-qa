@@ -1,0 +1,15 @@
+# Secrets
+.env
+# Environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+# Generated at runtime (vector DB, caches)
+storage/
+# Source documents are not published
+data/documents/*
+!data/documents/.gitkeep
+# Local backups and eval outputs
+_backup_*/
+eval/results/
