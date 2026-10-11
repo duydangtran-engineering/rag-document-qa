@@ -1,0 +1,25 @@
+# Version floors chosen so that every package has a prebuilt wheel for Python 3.13.
+# Do NOT pin these lower — the older releases have no cp313 wheel on Windows and
+# pip will try to compile them from source, which fails without Visual Studio.
+
+# --- Document parsing ---
+PyMuPDF>=1.25.0           # read PDF text + page images (for future snippet screenshots)
+python-docx>=1.1.2        # read DOCX
+
+# --- Embedding (runs locally on your RTX 3060) ---
+sentence-transformers>=3.3.0
+# torch is NOT listed here on purpose: install it first from the CUDA index, see README step 3a.
+
+# --- Vector database ---
+chromadb>=1.0.0
+
+# --- LLM ---
+google-genai>=1.2.0
+
+# --- Web API ---
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+
+# --- Utilities ---
+python-dotenv>=1.0.1
+rich>=13.8.1

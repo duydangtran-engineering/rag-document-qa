@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tra cứu tài liệu nội bộ</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --border: #e3e6ec;
+    --text: #1c2333;
+    --muted: #6b7386;
+    --accent: #2563eb;
+    --accent-soft: #eef3ff;
+    --ok: #0f9d58;
+    --warn: #b45309;
+    --danger: #c02626;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+
+  .status {
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-left: auto;
+    align-items: center;
+  }
+
+  .pill {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 20px 140px;
+  }
+
+  .msg { margin-bottom: 22px; }
+
+  .msg.user .bubble {
+    background: var(--accent);
+    color: #fff;
+    margin-left: auto;
+    border-radius: var(--radius) var(--radius) 4px var(--radius);
+  }
+
+  .bubble {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) var(--radius) 4px;
+    padding: 14px 18px;
+    max-width: 88%;
+    word-wrap: break-word;
+  }
+
+  /* Only raw text needs pre-wrap; the answer bubble is real HTML now. */
+  .msg.user .bubble, .bubble.error { white-space: pre-wrap; }
+
+  .msg.user .bubble { border-color: transparent; }
+
+  .bubble strong { font-weight: 650; color: #0f172a; }
+  .bubble em { font-style: italic; }
+  .bubble code {
+    background: #f1f3f7;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 5px;
+    font-size: 13px;
+    font-family: ui-monospace, Consolas, monospace;
+  }
+  .bubble ul, .bubble ol { margin: 8px 0; padding-left: 24px; }
+  .bubble li { margin: 3px 0; }
+  .bubble p { margin: 0 0 10px; }
+  .bubble hr { border: 0; border-top: 1px solid var(--border); margin: 14px 0; }
+  .bubble p:last-child, .bubble ul:last-child, .bubble ol:last-child { margin-bottom: 0; }
+
+  /* Citation markers are the point of the whole system — make them findable. */
+  .cite {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 4px;
+    padding: 0 4px;
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .bubble.error {
+    background: #fff5f5;
+    border-color: #f3c8c8;
+    color: var(--danger);
+  }
+
+  .meta { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  .split-note {
+    margin-top: 8px;
+    padding: 9px 14px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: var(--radius);
+    font-size: 12.5px;
+    color: var(--warn);
+  }
+  .split-note ul { margin: 5px 0 0; padding-left: 20px; }
+
+  .sources {
+    margin-top: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .sources > summary {
+    cursor: pointer;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    user-select: none;
+  }
+
+  .source {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .source-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .source-num { color: var(--accent); font-weight: 700; }
+  .source-cite { font-weight: 600; }
+  .score { color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+
+  .preview {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.55;
+    max-height: 96px;
+    overflow: hidden;
+  }
+
+  footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 14px 20px;
+  }
+
+  .composer {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+
+  textarea {
+    flex: 1;
+    resize: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 11px 14px;
+    font: inherit;
+    color: inherit;
+    background: var(--bg);
+    max-height: 140px;
+  }
+
+  textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+
+  button {
+    border: 0;
+    background: var(--accent);
+    color: #fff;
+    border-radius: var(--radius);
+    padding: 11px 22px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  button:disabled { background: #a9b6d4; cursor: not-allowed; }
+
+  .options {
+    max-width: 900px;
+    margin: 8px auto 0;
+    font-size: 12.5px;
+    color: var(--muted);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .empty { color: var(--muted); text-align: center; padding: 60px 20px; }
+  .empty h2 { font-size: 16px; color: var(--text); margin: 0 0 8px; }
+
+  .dots::after {
+    content: "";
+    animation: dots 1.2s steps(4, end) infinite;
+  }
+  @keyframes dots { 0% {content:"";} 25% {content:".";} 50% {content:"..";} 75% {content:"...";} }
+
+  /* --- Upload button (header) --- */
+  .upload-btn {
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* --- Upload progress bubble (a "system" message in the chat feed) --- */
+  .msg.system { display: flex; justify-content: center; }
+  .msg.system .bubble {
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    font-size: 13px;
+    background: var(--accent-soft);
+    border-color: transparent;
+    white-space: normal;
+  }
+  .msg.system .bubble.upload-error {
+    background: #fff5f5;
+    color: var(--danger);
+  }
+  .stage-text { color: inherit; }
+  .progress-track {
+    margin-top: 8px;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.15);
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width 0.25s ease;
+  }
+  .upload-error .progress-fill { background: var(--danger); }
+
+  /* --- Streaming answer cursor --- */
+  .cursor {
+    display: inline-block;
+    margin-left: 1px;
+    animation: blink 1s steps(1) infinite;
+    color: var(--muted);
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tra cứu tài liệu nội bộ</h1>
+  <label class="upload-btn" for="fileInput">📄 Tải tài liệu</label>
+  <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.md" multiple hidden>
+  <div class="status" id="status">Đang kết nối…</div>
+</header>
+
+<main>
+  <div id="chat">
+    <div class="empty" id="empty">
+      <h2>Đặt câu hỏi về tài liệu đã nạp</h2>
+      <div>Mọi câu trả lời đều kèm trích dẫn tên file, số trang và điều khoản.</div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="composer">
+    <textarea id="input" rows="1" placeholder="Nhập câu hỏi rồi nhấn Enter…"></textarea>
+    <button id="send">Gửi</button>
+  </div>
+  <div class="options">
+    <label><input type="checkbox" id="debug"> Hiện nội dung đoạn được trích</label>
+    <span id="docs"></span>
+  </div>
+</footer>
+
+<script>
+// Gemini has taken up to ~2 minutes when Google is busy, so be generous —
+// but never wait forever.
+const REQUEST_TIMEOUT_MS = 180000;
+
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const sendBtn = document.getElementById("send");
+const debugBox = document.getElementById("debug");
+
+// The model answers in Markdown, so "**26%**" would otherwise show its asterisks.
+// A tiny renderer instead of a CDN library: the app then still works with no
+// internet, and nothing but these five rules can ever reach innerHTML.
+function escapeHtml(text) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Defense-in-depth: the system prompt tells Gemini never to use LaTeX, but the
+// source documents themselves often contain LaTeX-style formulas (\frac, \text,
+// $...$), and a model can slip back into copying that style anyway. Our renderer
+// only understands plain text + basic Markdown, so raw LaTeX would otherwise show
+// up as literal backslashes and braces — this converts the common cases back to
+// plain notation before anything else runs.
+function stripLatex(text) {
+  return text
+    .replace(/\\text\{([^{}]*)\}/g, "$1")
+    .replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, "($1)/($2)")
+    .replace(/\\sqrt\{([^{}]*)\}/g, "√($1)")
+    .replace(/\\times/g, "×")
+    .replace(/\\cdot/g, "·")
+    .replace(/\\geq/g, "≥")
+    .replace(/\\leq/g, "≤")
+    .replace(/\\pm/g, "±")
+    .replace(/\\approx/g, "≈")
+    .replace(/\$\$?/g, "");
+}
+
+function inlineMarkdown(text) {
+  return escapeHtml(stripLatex(text))
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")   // bold BEFORE italic,
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")   // else ** eats one *
+    .replace(/(\[\d+\](?:\[\d+\])*)/g, '<span class="cite">$1</span>');
+}
+
+function renderMarkdown(text) {
+  // Numbered items may carry their own bullet sub-lists:
+  //   1. Heading            <ol><li>Heading
+  //   * detail                    <ul><li>detail</li></ul></li>
+  //   2. Next heading             <li>Next heading ...
+  // Earlier versions closed the <ol> at every bullet or blank line, so each
+  // numbered item became a new list and the count restarted at 1.
+  const html = [];
+  let top = null;       // outer list currently open: "ul" | "ol" | null
+  let olCount = 0;      // number of the last item written in the open <ol>
+  let liOpen = false;   // an <ol> item is open and can still take a sub-list
+  let nested = false;   // a <ul> is open inside that <ol> item
+
+  const closeNested = () => { if (nested) { html.push("</ul>"); nested = false; } };
+  const closeItem = () => { closeNested(); if (liOpen) { html.push("</li>"); liOpen = false; } };
+  const closeAll = () => { closeItem(); if (top) { html.push(`</${top}>`); top = null; } };
+
+  for (const rawLine of text.split("\n")) {
+    const line = rawLine.trim();
+
+    // A blank line does NOT end a list: models put one between a numbered
+    // item and its sub-bullets. Only a normal paragraph ends it.
+    if (!line) continue;
+
+    if (/^-{3,}$/.test(line)) { closeAll(); html.push("<hr>"); continue; }
+
+    const bullet = line.match(/^[*\-•+]\s+(.*)$/);
+    const numbered = line.match(/^(\d+)[.)]\s+(.*)$/);
+
+    if (numbered) {
+      if (top !== "ol") {
+        closeAll();
+        html.push("<ol>");
+        top = "ol";
+        olCount = Number(numbered[1]) - 1;  // first item sets the start
+      }
+      closeItem();
+      olCount += 1;  // later items count on, even if the model wrote "1." again
+      html.push(`<li value="${olCount}">${inlineMarkdown(numbered[2])}`);
+      liOpen = true;
+    } else if (bullet) {
+      if (top === "ol" && liOpen) {
+        if (!nested) { html.push("<ul>"); nested = true; }
+      } else if (top !== "ul") {
+        closeAll();
+        html.push("<ul>");
+        top = "ul";
+      }
+      html.push(`<li>${inlineMarkdown(bullet[1])}</li>`);
+    } else {
+      closeAll();
+      html.push(`<p>${inlineMarkdown(line)}</p>`);
+    }
+  }
+
+  closeAll();
+  return html.join("");
+}
+
+function markdownBubble(text) {
+  const node = el("div", "bubble");
+  node.innerHTML = renderMarkdown(text);
+  return node;
+}
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+async function loadStatus() {
+  try {
+    const res = await fetch("/api/status");
+    const data = await res.json();
+    const status = document.getElementById("status");
+    status.innerHTML = "";
+    status.append(
+      el("span", "pill", data.chunks + " chunk"),
+      el("span", null, data.documents.length + " tài liệu"),
+      el("span", null, data.model),
+      el("span", null, data.device)
+    );
+    document.getElementById("docs").textContent = data.documents.join(" · ");
+  } catch (err) {
+    document.getElementById("status").textContent = "Không kết nối được máy chủ";
+  }
+}
+
+function addUser(text) {
+  document.getElementById("empty")?.remove();
+  const wrap = el("div", "msg user");
+  wrap.append(el("div", "bubble", text));
+  chat.append(wrap);
+  scrollDown();
+}
+
+function addPending() {
+  const wrap = el("div", "msg");
+  const bubble = el("div", "bubble");
+  bubble.append(el("span", "dots", "Đang tìm trong tài liệu"));
+  wrap.append(bubble);
+  chat.append(wrap);
+  scrollDown();
+  return wrap;
+}
+
+function setPendingStage(wrap, text) {
+  const bubble = wrap.querySelector(".bubble");
+  bubble.innerHTML = "";
+  bubble.append(el("span", "dots", text));
+}
+
+// Re-renders the bubble on every chunk. Gemini's stream arrives in sentence/
+// paragraph-sized pieces (not single tokens), so re-parsing the whole markdown
+// each time is cheap enough not to be worth diffing.
+function streamAnswerInto(wrap, rawText) {
+  let bubble = wrap.querySelector(".bubble.streaming");
+  if (!bubble) {
+    wrap.innerHTML = "";
+    bubble = el("div", "bubble streaming");
+    wrap.append(bubble);
+  }
+  bubble.innerHTML = renderMarkdown(rawText) + '<span class="cursor">▊</span>';
+  scrollDown();
+}
+
+function finalizeAnswer(wrap, rawText, meta, doneEvent) {
+  wrap.innerHTML = "";
+  wrap.append(markdownBubble(rawText || "(không có nội dung)"));
+  const subQuestions = meta.sub_questions || [];
+  const sources = meta.sources || [];
+  if (subQuestions.length > 1) wrap.append(renderSplitNote(subQuestions));
+  if (sources.length) wrap.append(renderSources(sources));
+  wrap.append(el("div", "meta", formatTiming({
+    sources,
+    retrieval_ms: meta.retrieval_ms,
+    generation_ms: doneEvent.generation_ms,
+    elapsed_ms: doneEvent.elapsed_ms,
+    model: doneEvent.model,
+    cached: doneEvent.cached,
+  })));
+  scrollDown();
+}
+
+// Reads a fetch() body as newline-delimited JSON, calling onEvent per line.
+// Both /api/ask/stream and /api/upload use this exact wire format.
+async function readNdjson(response, onEvent) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop(); // last element may be a partial line — keep it for next read
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      onEvent(JSON.parse(line));
+    }
+  }
+}
+
+function renderSources(sources) {
+  const box = el("details", "sources");
+  box.append(el("summary", null, `Nguồn trích dẫn (${sources.length})`));
+  box.open = true;
+
+  for (const s of sources) {
+    const row = el("div", "source");
+    const head = el("div", "source-head");
+    head.append(
+      el("span", "source-num", "[" + s.number + "]"),
+      el("span", "source-cite", s.citation),
+      el("span", "score",
+         s.score === null ? "ngữ cảnh liền kề"
+         : s.rerank_score != null
+           ? "liên quan " + Math.round(s.rerank_score * 100) + "%"
+           : "độ tương đồng " + s.score)
+    );
+    row.append(head);
+    if (debugBox.checked) row.append(el("div", "preview", s.preview + "…"));
+    box.append(row);
+  }
+  return box;
+}
+
+function formatTiming(data) {
+  const parts = [`${data.sources.length} đoạn được dùng`];
+
+  if (data.retrieval_ms !== undefined) {
+    const share = data.elapsed_ms > 0
+      ? Math.round((data.generation_ms / data.elapsed_ms) * 100)
+      : 0;
+    parts.push(
+      `tìm kiếm ${data.retrieval_ms} ms`,
+      `sinh câu trả lời ${data.generation_ms} ms (${share}%)`,
+      `tổng ${data.elapsed_ms} ms`
+    );
+  } else {
+    parts.push(`${data.elapsed_ms} ms`);
+  }
+  if (data.cached) parts.push("lấy từ bộ nhớ đệm, không gọi API");
+  else if (data.model) parts.push(data.model);
+  return parts.join(" · ");
+}
+
+function renderSplitNote(parts) {
+  const box = el("div", "split-note");
+  box.append(el("div", null, "Câu hỏi có nhiều ý — đã tách và tìm riêng từng ý:"));
+  const list = el("ul");
+  for (const p of parts) list.append(el("li", null, p));
+  box.append(list);
+  return box;
+}
+
+function replaceWithAnswer(wrap, data) {
+  wrap.innerHTML = "";
+  wrap.append(markdownBubble(data.answer));
+  if (data.sub_questions && data.sub_questions.length > 1) {
+    wrap.append(renderSplitNote(data.sub_questions));
+  }
+  if (data.sources.length) wrap.append(renderSources(data.sources));
+  wrap.append(el("div", "meta", formatTiming(data)));
+  scrollDown();
+}
+
+function replaceWithError(wrap, message) {
+  wrap.innerHTML = "";
+  wrap.append(el("div", "bubble error", message));
+  scrollDown();
+}
+
+function scrollDown() {
+  window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+}
+
+async function send() {
+  const question = input.value.trim();
+  if (!question) return;
+
+  input.value = "";
+  input.style.height = "auto";
+  sendBtn.disabled = true;
+  addUser(question);
+  const wrap = addPending();
+
+  // Without a timeout the page spins forever if the server dies mid-request —
+  // which is exactly what happens when uvicorn --reload restarts underneath us.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let meta = null;
+  let rawText = "";
+  let sawError = false;
+
+  try {
+    const res = await fetch("/api/ask/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+      signal: controller.signal
+    });
+
+    if (!res.ok) {
+      // Rejected before streaming even started (e.g. empty vector store) —
+      // that response is plain JSON, not NDJSON.
+      const data = await res.json().catch(() => ({}));
+      replaceWithError(wrap, data.detail || "Máy chủ trả về lỗi " + res.status);
+      return;
+    }
+
+    await readNdjson(res, (event) => {
+      if (event.type === "meta") {
+        meta = event;
+        setPendingStage(wrap, "Đang trả lời");
+      } else if (event.type === "answer_chunk") {
+        rawText += event.text;
+        streamAnswerInto(wrap, rawText);
+      } else if (event.type === "error") {
+        sawError = true;
+        replaceWithError(wrap, event.message);
+      } else if (event.type === "done") {
+        finalizeAnswer(wrap, rawText, meta || {}, event);
+      }
+    });
+
+    if (!meta && !sawError) {
+      replaceWithError(wrap, "Không nhận được phản hồi từ máy chủ.");
+    }
+  } catch (err) {
+    if (err.name === "AbortError") {
+      replaceWithError(wrap,
+        "Quá " + (REQUEST_TIMEOUT_MS / 1000) + " giây chưa có phản hồi.\n" +
+        "Thường là máy chủ đã khởi động lại giữa chừng, hoặc Gemini đang quá tải. " +
+        "Kiểm tra terminal uvicorn rồi hỏi lại.");
+    } else {
+      replaceWithError(wrap,
+        "Không gọi được máy chủ. Kiểm tra terminal chạy uvicorn còn sống không.");
+    }
+  } finally {
+    clearTimeout(timer);
+    sendBtn.disabled = false;
+    input.focus();
+    loadStatus();  // The server may have restarted; refresh the header.
+  }
+}
+
+// --- Upload documents ---
+
+function addUploadBubble(filename) {
+  document.getElementById("empty")?.remove();
+  const wrap = el("div", "msg system");
+  const bubble = el("div", "bubble");
+  bubble.append(el("div", "stage-text", `Đang tải lên ${filename}...`));
+  const track = el("div", "progress-track");
+  track.append(el("div", "progress-fill"));
+  bubble.append(track);
+  wrap.append(bubble);
+  chat.append(wrap);
+  scrollDown();
+  return wrap;
+}
+
+function updateUploadBubble(wrap, event) {
+  const bubble = wrap.querySelector(".bubble");
+  bubble.querySelector(".stage-text").textContent = event.message || "";
+  const fill = bubble.querySelector(".progress-fill");
+
+  if (typeof event.progress === "number") {
+    fill.style.width = event.progress + "%";
+  } else if (event.stage === "done") {
+    fill.style.width = "100%";
+  }
+  if (event.stage === "error") {
+    bubble.classList.add("upload-error");
+  }
+}
+
+async function uploadFile(file) {
+  const wrap = addUploadBubble(file.name);
+  const form = new FormData();
+  form.append("file", file);
+
+  try {
+    const res = await fetch("/api/upload", { method: "POST", body: form });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      updateUploadBubble(wrap, { stage: "error", message: data.detail || ("Lỗi " + res.status) });
+      return;
+    }
+
+    await readNdjson(res, (event) => updateUploadBubble(wrap, event));
+  } catch (err) {
+    updateUploadBubble(wrap, { stage: "error", message: "Mất kết nối tới máy chủ khi đang tải lên." });
+  } finally {
+    loadStatus(); // chunk count / document list may have changed
+  }
+}
+
+const fileInput = document.getElementById("fileInput");
+fileInput.addEventListener("change", async () => {
+  const files = Array.from(fileInput.files || []);
+  fileInput.value = ""; // allow re-selecting the same file later
+  // Sequential on purpose: the embedding model is a single shared instance,
+  // and uploading several files at once would fight over it for no real gain.
+  for (const file of files) {
+    await uploadFile(file);
+  }
+});
+
+sendBtn.addEventListener("click", send);
+
+input.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    send();
+  }
+});
+
+input.addEventListener("input", () => {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 140) + "px";
+});
+
+loadStatus();
+input.focus();
+</script>
+</body>
+</html>
